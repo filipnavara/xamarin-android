@@ -265,6 +265,148 @@ stages:
       parameters:
         HostedMacKeychainPassword: $(AzDO-OnPrem-KeychainPass)
 
+  # Check - "Xamarin.Android (Mac Dotnet Build)"
+  - job: mac_dotnet_build_create_installers
+    displayName: Dotnet Build
+    pool: $(MacMojaveBuildPool)
+    timeoutInMinutes: 240
+    cancelTimeoutInMinutes: 5
+    workspace:
+      clean: all
+    steps:
+    - checkout: self
+      submodules: recursive
+
+    - script: echo "##vso[task.setvariable variable=JI_JAVA_HOME]$HOME/Library/Android/$(XA.Jdk11.Folder)"
+      displayName: set JI_JAVA_HOME
+
+    - template: yaml-templates/use-dot-net.yaml
+      parameters:
+        version: $(DotNet5Version)
+        remove_dotnet: true
+
+    - template: yaml-templates/use-dot-net.yaml
+      parameters:
+        version: $(DotNetCoreVersion)
+
+    - template: install-certificates.yml@yaml
+      parameters:
+        DeveloperIdApplication: $(developer-id-application)
+        DeveloperIdInstaller: $(developer-id-installer)
+        IphoneDeveloper: $(iphone-developer)
+        MacDeveloper: $(mac-developer)
+        HostedMacKeychainPassword: $(AzDO-OnPrem-KeychainPass)
+
+    - task: provisionator@2
+      displayName: Install Xcode
+      inputs:
+        github_token: $(GitHub.Token)
+        provisioning_script: $(System.DefaultWorkingDirectory)/xamarin-android/build-tools/provisioning/xcode.csx
+        provisioning_extra_args: '-v -v -v -v'
+
+    # Prepare and build everything
+    - script: make prepare-update-mono V=1 CONFIGURATION=$(XA.Build.Configuration) PREPARE_CI=1 PREPARE_AUTOPROVISION=1
+      workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+      displayName: make prepare-update-mono
+
+    - script: mono $(System.DefaultWorkingDirectory)/xamarin-android/build-tools/xaprepare/xaprepare/bin/$(XA.Build.Configuration)/xaprepare.exe --s=DetermineApplicableTests --no-emoji --run-mode=CI
+      name: TestConditions
+      condition: and(succeeded(), eq(variables['Build.DefinitionName'], 'Xamarin.Android-PR'))
+
+    # Clone monodroid wth submodules, but disregard the unused xamarin-android submodule.
+    - checkout: monodroid
+      clean: true
+      submodules: recursive
+      path: s/xamarin-android/external/monodroid
+      persistCredentials: true
+      condition: and(succeeded(), eq(variables['XA.Commercial.Build'], 'true'))
+
+    - script: rm -rf external/monodroid/external/xamarin-android
+      workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+      displayName: delete legacy xamarin-android submodule
+      condition: and(succeeded(), eq(variables['XA.Commercial.Build'], 'true'))
+
+    - script: make prepare-external-git-dependencies PREPARE_CI=1 CONFIGURATION=$(XA.Build.Configuration)
+      workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+      displayName: make prepare-external-git-dependencies
+      condition: and(succeeded(), eq(variables['XA.Commercial.Build'], 'true'))
+
+    #- script: make jenkins V=1 CONFIGURATION=$(XA.Build.Configuration) PREPARE_CI=1 PREPARE_AUTOPROVISION=1
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: make jenkins
+
+    ## Build and package test assemblies
+    #- script: make all-tests V=1 CONFIGURATION=$(XA.Build.Configuration)
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: make all-tests
+
+    #- script: >
+    #    cp -r bin/$(XA.Build.Configuration)/bcl-tests bin/Test$(XA.Build.Configuration)/bcl-tests &&
+    #    cp bin/Build$(XA.Build.Configuration)/ProfileAssemblies.projitems bin/Test$(XA.Build.Configuration)/bcl-tests/
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: copy bcl-tests assemblies
+
+    #- task: PublishPipelineArtifact@1
+    #  displayName: upload test assemblies
+    #  inputs:
+    #    artifactName: $(TestAssembliesArtifactName)
+    #    targetPath: xamarin-android/bin/Test$(XA.Build.Configuration)
+
+    #- task: MSBuild@1
+    #  displayName: pack all nupkgs
+    #  inputs:
+    #    solution: $(System.DefaultWorkingDirectory)/xamarin-android/build-tools/create-packs/Microsoft.Android.Sdk.proj
+    #    configuration: $(XA.Build.Configuration)
+    #    msbuildArguments: /t:CreateAllPacks /restore /p:NuGetLicense=$(System.DefaultWorkingDirectory)/xamarin-android/external/monodroid/tools/scripts/License.txt /bl:$(System.DefaultWorkingDirectory)/xamarin-android/bin/Build$(XA.Build.Configuration)/create-all-packs.binlog
+
+    ## Create installers
+    #- script: make create-installers V=1 CONFIGURATION=$(XA.Build.Configuration)
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: make create-installers
+
+    #- script: >
+    #    mkdir -p bin/Build$(XA.Build.Configuration)/$(InstallerArtifactName) &&
+    #    cp bin/Build$(XA.Build.Configuration)/*.vsix bin/Build$(XA.Build.Configuration)/$(InstallerArtifactName) &&
+    #    cp bin/Build$(XA.Build.Configuration)/*.pkg bin/Build$(XA.Build.Configuration)/$(InstallerArtifactName)
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: copy unsigned installers
+
+    #- script: >
+    #    VERSION=`LANG=C; export LANG && git log --no-color --first-parent -n1 --pretty=format:%ct` &&
+    #    echo "d1ec039f-f3db-468b-a508-896d7c382999 $VERSION" > bin/Build$(XA.Build.Configuration)/$(InstallerArtifactName)/updateinfo
+    #  workingDirectory: $(System.DefaultWorkingDirectory)/xamarin-android
+    #  displayName: create updateinfo file
+
+    #- task: PublishPipelineArtifact@1
+    #  displayName: upload installers
+    #  inputs:
+    #    artifactName: $(InstallerArtifactName)
+    #    targetPath: xamarin-android/bin/Build$(XA.Build.Configuration)/$(InstallerArtifactName)
+
+    #- task: NuGetCommand@2
+    #  displayName: push nupkgs
+    #  inputs:
+    #    command: push
+    #    packagesToPush: $(System.DefaultWorkingDirectory)/xamarin-android/bin/Build$(XA.Build.Configuration)/$(NuGetArtifactName)/*.nupkg
+    #    nuGetFeedType: external
+    #    publishFeedCredentials: xamarin-impl public feed
+    #  condition: and(succeeded(), eq(variables['PushXAPackages'], 'true'))
+
+    #- task: PublishPipelineArtifact@1
+    #  displayName: upload nupkgs
+    #  inputs:
+    #    artifactName: $(NuGetArtifactName)
+    #    targetPath: $(System.DefaultWorkingDirectory)/xamarin-android/bin/Build$(XA.Build.Configuration)/$(NuGetArtifactName)
+
+    #- template: yaml-templates/upload-results.yaml
+    #  parameters:
+    #    solution: xamarin-android/build-tools/Xamarin.Android.Tools.BootstrapTasks/Xamarin.Android.Tools.BootstrapTasks.csproj
+    #    artifactName: Build Results - macOS
+
+    - template: uninstall-certificates/v1.yml@yaml
+      parameters:
+        HostedMacKeychainPassword: $(AzDO-OnPrem-KeychainPass)
+
 # This stage ensures Windows specific build steps continue to work, and runs unit tests.
 # Check - "Xamarin.Android (Windows Build and Test)"
 - stage: win_build_test
@@ -383,6 +525,120 @@ stages:
     - template: yaml-templates\upload-results.yaml
       parameters:
         artifactName: Build Results - Windows
+
+    - template: yaml-templates\fail-on-issue.yaml
+
+  - job: win_dotnet_build_test
+    displayName: Dotnet Build and Smoke Test
+    pool: $(VSEngWinVS2019)
+    timeoutInMinutes: 360
+    cancelTimeoutInMinutes: 5
+    steps:
+    - checkout: self
+      submodules: recursive
+
+    - template: yaml-templates\kill-processes.yaml
+
+    - template: yaml-templates\clean.yaml
+
+    - template: yaml-templates\update-vs.yaml
+
+    - script: |
+        echo ##vso[task.setvariable variable=JI_JAVA_HOME]%USERPROFILE%\android-toolchain\$(XA.Jdk11.Folder)
+      displayName: set JI_JAVA_HOME
+
+    - template: yaml-templates\use-dot-net.yaml
+      parameters:
+        version: $(DotNet5Version)
+
+    - template: yaml-templates\use-dot-net.yaml
+      parameters:
+        version: $(DotNetCoreVersion)
+
+    # Downgrade the XA .vsix installed into the instance of VS that we are building with so that we don't restore/build against a test version.
+    # The VS installer will attempt to resume any failed or partial installation before trying to downgrade Xamarin.Android.
+    # VSIXInstaller.exe will exit non-zero when the downgrade attempt is a no-op, so we will allow this step to fail silently.
+    - powershell: |
+        $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        & "$vsWhere" -all -prerelease -latest | Out-Default
+        $isLatestVSLaunchable = & "$vsWhere" -all -prerelease -latest -property isLaunchable
+        if ($isLatestVSLaunchable -eq 0) {
+            $vsPath = & "$vsWhere" -all -prerelease -latest -property installationPath
+            Write-Host "Attempting to repair VS instance:" $vsPath
+            $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+            & "$vsInstaller" resume --installPath $vsPath --quiet --norestart | Out-Default
+            Write-Host "vs_installer.exe resume attempt complete"
+        }
+        $vsixInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\resources\app\ServiceHub\Services\Microsoft.VisualStudio.Setup.Service\VSIXInstaller.exe"
+        $ts = Get-Date -Format FileDateTimeUniversal
+        $log = "xavsixdowngrade-$ts.log"
+        $process = Start-Process -NoNewWindow -FilePath $vsixInstaller -ArgumentList "/downgrade:Xamarin.Android.Sdk /admin /quiet /logFile:$log" -Wait -PassThru -RedirectStandardError "err.txt"
+        Get-Content "err.txt" | Write-Host
+        Get-Content "${env:TEMP}\$log" | Write-Host
+        Write-Host "VSInstaller.exe exited with code:" $process.ExitCode
+        Remove-Item "${env:TEMP}\$log"
+      displayName: downgrade XA to stable
+      ignoreLASTEXITCODE: true
+
+    - task: DotNetCoreCLI@2
+      displayName: Prepare Solution
+      inputs:
+        projects: Xamarin.Android.sln
+        arguments: '-c $(XA.Build.Configuration) -target:Prepare'
+
+    ## Build, pack .nupkgs, and extract workload packs to dotnet preview test directory
+    #- task: MSBuild@1
+    #  displayName: msbuild Xamarin.Android
+    #  inputs:
+    #    solution: Xamarin.Android.sln
+    #    configuration: $(XA.Build.Configuration)
+    #    msbuildArguments: /t:PackDotNet /bl:$(System.DefaultWorkingDirectory)\bin\Build$(XA.Build.Configuration)\msbuild-build.binlog
+
+    #- task: MSBuild@1
+    #  displayName: msbuild create-vsix
+    #  inputs:
+    #    solution: build-tools\create-vsix\create-vsix.csproj
+    #    configuration: $(XA.Build.Configuration)
+    #    msbuildArguments: /p:CreateVsixContainer=True /p:ZipPackageCompressionLevel=Normal /bl:$(System.DefaultWorkingDirectory)\bin\Build$(XA.Build.Configuration)\msbuild-create-vsix.binlog
+
+    #- task: CmdLine@1
+    #  displayName: xabuild Xamarin.Android-Tests
+    #  inputs:
+    #    filename: bin\$(XA.Build.Configuration)\bin\xabuild.exe
+    #    arguments: Xamarin.Android-Tests.sln /restore /p:Configuration=$(XA.Build.Configuration) /bl:$(System.DefaultWorkingDirectory)\bin\Test$(XA.Build.Configuration)\msbuild-build-tests.binlog
+
+    #- task: MSBuild@1
+    #  displayName: nunit Java.Interop Tests
+    #  inputs:
+    #    solution: Xamarin.Android.sln
+    #    configuration: $(XA.Build.Configuration)
+    #    msbuildArguments: >-
+    #      /restore
+    #      /t:RunJavaInteropTests
+    #      /p:TestAssembly="bin\Test$(XA.Build.Configuration)\generator-Tests.dll;bin\Test$(XA.Build.Configuration)\Java.Interop.Tools.JavaCallableWrappers-Tests.dll;bin\Test$(XA.Build.Configuration)\logcat-parse-Tests.dll;bin\Test$(XA.Build.Configuration)\Xamarin.Android.Tools.ApiXmlAdjuster-Tests.dll;bin\Test$(XA.Build.Configuration)\Xamarin.Android.Tools.Bytecode-Tests.dll"
+    #      /bl:$(System.DefaultWorkingDirectory)\bin\Test$(XA.Build.Configuration)\msbuild-run-ji-tests.binlog
+    #  continueOnError: True
+
+    #- task: PublishTestResults@2
+    #  displayName: publish test results
+    #  inputs:
+    #    testResultsFormat: NUnit
+    #    testResultsFiles: TestResult-*.xml
+    #    testRunTitle: Java Interop Tests - Windows Build Tree
+
+    ## Limit the amount of worker threads used to run these tests in parallel to half of what is currently available (8) on the Windows pool.
+    ## Using all available cores seems to occasionally bog down our machines and cause parallel test execution to slow down dramatically.
+    ## Only run a subset of the Xamarin.Android.Build.Tests against the local Windows build tree.
+    #- template: yaml-templates\run-nunit-tests.yaml
+    #  parameters:
+    #    testRunTitle: Smoke MSBuild Tests - Windows Build Tree
+    #    testAssembly: $(System.DefaultWorkingDirectory)\bin\Test$(XA.Build.Configuration)\net472\Xamarin.Android.Build.Tests.dll
+    #    testResultsFile: TestResult-SmokeMSBuildTests-WinBuildTree-$(XA.Build.Configuration).xml
+    #    nunitConsoleExtraArgs: --where "cat == SmokeTests"
+
+    #- template: yaml-templates\upload-results.yaml
+    #  parameters:
+    #    artifactName: Build Results - Windows
 
     - template: yaml-templates\fail-on-issue.yaml
 
