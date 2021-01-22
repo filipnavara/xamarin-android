@@ -27,13 +27,14 @@ For <MonoAOTCompiler/> usage, see:
     -->
     <ItemGroup>
       <_AotRuntimeIdentifiers Include="$([System.String]::Copy('%(_RIDs.Identity)').Replace('.21', ''))" />
+      <_AotCompilerPaths Include="$(MSBuildThisFileDirectory)..\..\..\microsoft.netcore.app.runtime.aot.osx-x64.cross.%(_AotRuntimeIdentifiers.Identity)\$(MonoAOTCompilerVersion)\tools\mono-aot-cross" />
     </ItemGroup>
     <MonoAOTCompiler
         AotModulesTableLanguage="$(_AotModulesTableLanguage)"
         AotModulesTablePath="$(_AotModulesTablePath)"
         AotProfilePath="$(_AotProfilePath)"
-        Assemblies="@(_ShrunkAssemblies)"
-        CompilerBinaryPath="$(MSBuildThisFileDirectory)..\..\..\microsoft.netcore.app.runtime.aot.osx-x64.cross.%(_AotRuntimeIdentifiers.Identity)\$(MonoAOTCompilerVersion)\tools\mono-aot-cross"
+        Assemblies="@(_ShrunkAssemblies->'%(FullPath)')"
+        CompilerBinaryPath="%(_AotCompilerPaths.FullPath)"
         DisableParallelAot="$(_DisableParallelAot)"
         LLVMPath="$(_LLVMPath)"
         Mode="$(AndroidAotMode)"

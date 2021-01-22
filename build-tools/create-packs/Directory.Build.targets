@@ -119,6 +119,7 @@
     <Copy SourceFiles="@(_WLTemplates)" DestinationFolder="$(DotNetPreviewPath)template-packs" />
     <ItemGroup>
       <_UnixExecutables Include="$(DotNetPreviewPath)packs\Microsoft.Android.Sdk.*\*\tools\$(HostOS)\**\*.*" />
+      <_UnixExecutables Include="$(DotNetPreviewPath)packs\microsoft.netcore.app.runtime.aot.*.cross.*\*\tools\*.*" />
       <_FilesToTouch Include="$(DotNetPreviewPath)sdk-manifests\$(DotNetPreviewVersionBand)\Microsoft.NET.Workload.Android\**" />
       <_FilesToTouch Include="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_WLPacks.Filename)').Replace('.$(_WLPackVersion)', ''))\$(_WLPackVersion)\**" />
       <_FilesToTouch Include="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_AotPacks.Filename)').Replace('.$(MonoAOTCompilerVersion)', ''))\$(MonoAOTCompilerVersion)\**" />
