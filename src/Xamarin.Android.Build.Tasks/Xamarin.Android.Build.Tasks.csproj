@@ -38,6 +38,7 @@
   <ItemGroup>
     <PackageReference Include="ILRepack" Version="2.0.18" />
     <PackageReference Include="Irony" Version="1.1.0" />
+    <PackageReference Include="Microsoft.NET.Runtime.MonoAOTCompiler.Task" Version="$(MonoAOTCompilerVersion)" IncludeAssets="build" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="NuGet.Common" Version="$(NuGetApiPackageVersion)" />
     <PackageReference Include="NuGet.Configuration" Version="$(NuGetApiPackageVersion)" />
@@ -371,6 +372,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="$(PkgMono_Posix_NETStandard)\runtimes\linux-x64\native\libMonoPosixHelper.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(MonoAOTCompilerTaskAssemblyPath)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

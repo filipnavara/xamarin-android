@@ -98,6 +98,7 @@
       <_WLTemplates Include="$(XamarinAndroidSourcePath)bin\Build$(Configuration)\nupkgs\Microsoft.Android.Templates.*.nupkg" />
       <!-- Runtime packs are not yet supported by workloads -->
       <!-- <_WLPacks Include="$(XamarinAndroidSourcePath)bin\Build$(Configuration)\nupkgs\Microsoft.Android.Runtime.*.nupkg" /> -->
+      <_AotPacks Include="$(XamarinAndroidSourcePath)bin\Build$(Configuration)\nupkgs\microsoft.netcore.app.runtime.aot.*.cross.*.nupkg" />
     </ItemGroup>
     <PropertyGroup>
       <_WLPackVersion>@(_WLManifest->'%(Filename)'->Replace('Microsoft.NET.Workload.Android.', ''))</_WLPackVersion>
@@ -110,12 +111,17 @@
         SourceFiles="@(_WLPacks)"
         DestinationFolder="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_WLPacks.Filename)').Replace('.$(_WLPackVersion)', ''))\$(_WLPackVersion)"
     />
+    <Unzip
+        SourceFiles="@(_AotPacks)"
+        DestinationFolder="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_AotPacks.Filename)').Replace('.$(MonoAOTCompilerVersion)', ''))\$(MonoAOTCompilerVersion)"
+    />
     <MakeDir Directories="$(DotNetPreviewPath)template-packs" />
     <Copy SourceFiles="@(_WLTemplates)" DestinationFolder="$(DotNetPreviewPath)template-packs" />
     <ItemGroup>
       <_UnixExecutables Include="$(DotNetPreviewPath)packs\Microsoft.Android.Sdk.*\*\tools\$(HostOS)\**\*.*" />
       <_FilesToTouch Include="$(DotNetPreviewPath)sdk-manifests\$(DotNetPreviewVersionBand)\Microsoft.NET.Workload.Android\**" />
       <_FilesToTouch Include="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_WLPacks.Filename)').Replace('.$(_WLPackVersion)', ''))\$(_WLPackVersion)\**" />
+      <_FilesToTouch Include="$(DotNetPreviewPath)packs\$([System.String]::Copy('%(_AotPacks.Filename)').Replace('.$(MonoAOTCompilerVersion)', ''))\$(MonoAOTCompilerVersion)\**" />
     </ItemGroup>
     <Exec
         Condition=" '$(HostOS)' == 'Darwin' or '$(HostOS)' == 'Linux' "
@@ -135,6 +141,7 @@
       <_PackFilesToDelete Include="$(DotNetPreviewPath)sdk-manifests\$(DotNetPreviewVersionBand)\Microsoft.Android.Workload\**\*.*" />
       <_PackFilesToDelete Include="$(DotNetPreviewPath)sdk-manifests\$(DotNetPreviewVersionBand)\Microsoft.NET.Workload.Android\**\*.*" />
       <_PackFilesToDelete Include="$(DotNetPreviewPath)packs\Microsoft.Android*\**\*.*" />
+      <_PackFilesToDelete Include="$(DotNetPreviewPath)packs\microsoft.netcore.app.runtime.aot.*.cross.*\**\*.*" />
       <_PackFilesToDelete Include="$(DotNetPreviewPath)template-packs\Microsoft.Android.Templates.*.nupkg" />
     </ItemGroup>
     <RemoveDir Directories="%(_PackFilesToDelete.RootDir)%(_PackFilesToDelete.Directory)" />

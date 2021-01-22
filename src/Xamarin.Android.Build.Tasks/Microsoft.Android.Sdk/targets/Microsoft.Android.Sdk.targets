@@ -3,6 +3,7 @@
   <PropertyGroup>
     <MicrosoftAndroidSdkTargetsImported>true</MicrosoftAndroidSdkTargetsImported>
     <_XamarinAndroidBuildTasksAssembly>..\tools\Xamarin.Android.Build.Tasks.dll</_XamarinAndroidBuildTasksAssembly>
+    <MonoAOTCompilerTaskAssemblyPath>..\tools\MonoAOTCompiler.dll</MonoAOTCompilerTaskAssemblyPath>
     <UsingAndroidNETSdk>true</UsingAndroidNETSdk>
     <!-- Enable nuget package conflict resolution -->
     <ResolveAssemblyConflicts>true</ResolveAssemblyConflicts>

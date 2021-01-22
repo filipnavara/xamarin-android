@@ -28,6 +28,22 @@ core workload sdk packs imported by Microsoft.NET.Workload.Android.
     </BeforePack>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!--
+      @(PackageDownload) with an exact version such as [6.0.0-preview.1.21072.5] is the only way to consume these packages:
+      error NU1213: The package Microsoft.NETCore.App.Runtime.AOT.osx-x64.Cross.android-* has a package type DotnetPlatform that is incompatible with this project.
+    -->
+    <!-- TODO: We only have osx-x64 packs-->
+    <PackageDownload Include="Microsoft.NetCore.App.Runtime.AOT.osx-x64.Cross.android-arm"   Version="[$(MonoAOTCompilerVersion)]" />
+    <PackageDownload Include="Microsoft.NetCore.App.Runtime.AOT.osx-x64.Cross.android-arm64" Version="[$(MonoAOTCompilerVersion)]" />
+    <PackageDownload Include="Microsoft.NetCore.App.Runtime.AOT.osx-x64.Cross.android-x64"   Version="[$(MonoAOTCompilerVersion)]" />
+    <PackageDownload Include="Microsoft.NetCore.App.Runtime.AOT.osx-x64.Cross.android-x86"   Version="[$(MonoAOTCompilerVersion)]" />
+    <None Include="$(XamarinAndroidSourcePath)packages\microsoft.netcore.app.runtime.aot.*.cross.*\$(MonoAOTCompilerVersion)\*.nupkg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>..\%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
   <Target Name="_GenerateXASdkContent"
       DependsOnTargets="ConstructInstallerItems;_GenerateBundledVersions;_GetLicense">
     <PropertyGroup>
@@ -62,6 +78,8 @@ core workload sdk packs imported by Microsoft.NET.Workload.Android.
       <!-- Microsoft.Android.Sdk.ILLink output -->
       <_PackageFiles Include="$(XAInstallPrefix)xbuild\Xamarin\Android\Microsoft.Android.Sdk.ILLink.dll" PackagePath="tools" />
       <_PackageFiles Include="$(XAInstallPrefix)xbuild\Xamarin\Android\Microsoft.Android.Sdk.ILLink.pdb" PackagePath="tools" />
+      <!-- TODO: .pdb file is missing -->
+      <_PackageFiles Include="$(XAInstallPrefix)xbuild\Xamarin\Android\MonoAOTCompiler.dll" PackagePath="tools" />
       <_PackageFiles Include="$(ToolsSourceDir)**" PackagePath="tools" />
       <_PackageFiles Include="$(NetCoreAppToolsSourceDir)generator.dll" PackagePath="tools" />
       <_PackageFiles Include="$(NetCoreAppToolsSourceDir)generator.runtimeconfig.json" PackagePath="tools" />
@@ -104,6 +122,7 @@ WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and
   <PropertyGroup>
     <AndroidNETSdkVersion>$(AndroidPackVersionLong)</AndroidNETSdkVersion>
     <XamarinAndroidVersion>$(AndroidPackVersionLong)</XamarinAndroidVersion>
+    <MonoAOTCompilerVersion>$(MonoAOTCompilerVersion)</MonoAOTCompilerVersion>
   </PropertyGroup>
   <ItemGroup>
     <KnownFrameworkReference
